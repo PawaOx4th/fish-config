@@ -40,6 +40,7 @@ show_always = true
 symbol = '🌱 '
 truncation_length = 70
 truncation_symbol = '...'
+format = 'on [$symbol$branch(:$remote_branch)]($style) '
 
 [package]
 disabled = true
