@@ -6,6 +6,10 @@ set -Ux STARSHIP_CONFIG ~/.config/fish/starship.toml
 # set --export STARSHIP_CONFIG ~/.config/fish/starship.toml
 # --------------------------------------------------------- #
 
+string match -q "$TERM_PROGRAM" "vscode"
+and . (code --locate-shell-integration-path fish)
+
+
 starship init fish | source
 
 fnm env --use-on-cd --shell fish | source
