@@ -1,4 +1,4 @@
-function commit
+function commit_url
     # set pr $argv[1]
     
     # if test -z "$pr"
