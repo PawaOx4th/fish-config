@@ -44,3 +44,9 @@ Enable zsh completion:
    autoload -Uz compinit && compinit
 3. Reload shell
    source ~/.zshrc
+
+Enable fish completion:
+
+1. Completion file is already at ~/.config/fish/completions/gsb.fish
+2. Reload fish
+   source ~/.config/fish/completions/gsb.fish
