@@ -6,8 +6,9 @@ set -Ux STARSHIP_CONFIG ~/.config/fish/starship.toml
 # set --export STARSHIP_CONFIG ~/.config/fish/starship.toml
 # --------------------------------------------------------- #
 
-string match -q "$TERM_PROGRAM" vscode
+string match -q "$TERM_PROGRAM" "vscode"
 and . (code --locate-shell-integration-path fish)
+
 
 starship init fish | source
 
@@ -17,25 +18,20 @@ if status is-interactive
     # Commands to run in interactive sessions can go here
 end
 
+
+
 # Added by OrbStack: command-line tools and integration
 # This won't be added again if you remove it.
 source ~/.orbstack/shell/init2.fish 2>/dev/null || :
 
 # pnpm
-set -gx PNPM_HOME /Users/pawaox4th/Library/pnpm
+set -gx PNPM_HOME "/Users/pawaox4th/Library/pnpm"
 if not string match -q -- $PNPM_HOME $PATH
-    set -gx PATH "$PNPM_HOME" $PATH
+  set -gx PATH "$PNPM_HOME" $PATH
 end
 # pnpm end
+
 
 # Disable fish autosuggestions
 set -g fish_autosuggestion_enabled 0
 
-# Carapace for autocompletion
-set -Ux CARAPACE_BRIDGES 'zsh,fish,bash,inshellisense' # optional
-carapace _carapace | source
-
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/Users/pawaox4th/Downloads/google-cloud-sdk/path.fish.inc' ]
-    . '/Users/pawaox4th/Downloads/google-cloud-sdk/path.fish.inc'
-end
