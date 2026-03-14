@@ -1,0 +1,151 @@
+#!/usr/bin/env sh
+
+# gsb: select a remote branch and switch to it.
+# Portable POSIX shell implementation with fzf (optional) fallback.
+
+print_help() {
+  cat <<'EOF'
+Usage: gsb [remote] [options]
+
+Select a remote branch and switch immediately.
+
+Options:
+  -h, --help            Show this help message
+  -f, --fetch           Fetch remote first (blocking)
+  -a, --auto-fetch      Enable background auto-fetch (default)
+      --no-auto-fetch   Disable background auto-fetch
+      --bg-status       Show a short background fetch status message (default)
+      --no-bg-status    Hide background fetch status message
+
+Arguments:
+  remote                Remote name (default: origin)
+
+Examples:
+  gsb
+  gsb upstream
+  gsb --fetch
+  gsb upstream --no-bg-status
+EOF
+}
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+if ! command -v git >/dev/null 2>&1; then
+  fail "git is not installed"
+fi
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  fail "not inside a git repository"
+fi
+
+remote="origin"
+should_fetch=0
+should_auto_fetch=1
+show_bg_fetch_status=1
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      print_help
+      exit 0
+      ;;
+    -f|--fetch)
+      should_fetch=1
+      ;;
+    -a|--auto-fetch)
+      should_auto_fetch=1
+      ;;
+    --no-auto-fetch)
+      should_auto_fetch=0
+      ;;
+    --bg-status)
+      show_bg_fetch_status=1
+      ;;
+    --no-bg-status)
+      show_bg_fetch_status=0
+      ;;
+    *)
+      remote="$arg"
+      ;;
+  esac
+done
+
+if [ "$should_fetch" -eq 1 ]; then
+  if ! git fetch "$remote" --prune >/dev/null 2>&1; then
+    fail "failed to fetch remote: $remote"
+  fi
+elif [ "$should_auto_fetch" -eq 1 ]; then
+  if command -v nohup >/dev/null 2>&1; then
+    nohup git fetch "$remote" --prune >/dev/null 2>&1 &
+  else
+    git fetch "$remote" --prune >/dev/null 2>&1 &
+  fi
+
+  if [ "$show_bg_fetch_status" -eq 1 ]; then
+    printf '[gsb] background fetch started for %s\n' "$remote" >&2
+  fi
+fi
+
+tmp_remote="$(mktemp)"
+tmp_local="$(mktemp)"
+tmp_display="$(mktemp)"
+trap 'rm -f "$tmp_remote" "$tmp_local" "$tmp_display"' EXIT HUP INT TERM
+
+git for-each-ref --format='%(refname:short)' "refs/remotes/$remote" \
+  | grep -v "^$remote/HEAD$" \
+  | sed "s#^$remote/##" \
+  | sort -u >"$tmp_remote"
+
+if [ ! -s "$tmp_remote" ]; then
+  printf 'no cached remote branches found for: %s\n' "$remote" >&2
+  printf 'try: gsb %s --fetch\n' "$remote" >&2
+  exit 1
+fi
+
+git for-each-ref --format='%(refname:short)' refs/heads | sort -u >"$tmp_local"
+
+while IFS= read -r branch; do
+  if grep -Fxq "$branch" "$tmp_local"; then
+    printf '%s\t[All]: %s\n' "$branch" "$branch"
+  else
+    printf '%s\t[remote]: %s\n' "$branch" "$branch"
+  fi
+done <"$tmp_remote" >"$tmp_display"
+
+selected_branch=""
+
+if command -v fzf >/dev/null 2>&1; then
+  selected_line="$(
+    cat "$tmp_display" | fzf --height=45% --layout=reverse --prompt='remote branch > ' --delimiter='\t' --with-nth=2
+  )"
+  selected_branch="$(printf '%s' "$selected_line" | awk -F '\t' 'NR==1 {print $1}')"
+else
+  printf 'fzf is not installed; using numbered selection fallback.\n' >&2
+  nl -w2 -s') ' "$tmp_remote" >&2
+  printf 'Select branch number (or blank to cancel): ' >&2
+  IFS= read -r selection
+
+  case "$selection" in
+    '')
+      exit 0
+      ;;
+    *[!0-9]*)
+      fail "invalid selection"
+      ;;
+  esac
+
+  selected_branch="$(sed -n "${selection}p" "$tmp_remote")"
+fi
+
+if [ -z "$selected_branch" ]; then
+  exit 0
+fi
+
+if git show-ref --verify --quiet "refs/heads/$selected_branch"; then
+  exec git switch "$selected_branch"
+else
+  exec git switch --track -c "$selected_branch" "$remote/$selected_branch"
+fi

@@ -1,0 +1,23 @@
+#compdef gsb
+
+_gsb() {
+  local -a opts
+  opts=(
+    '-h[Show help]'
+    '--help[Show help]'
+    '-f[Fetch remote first (blocking)]'
+    '--fetch[Fetch remote first (blocking)]'
+    '-a[Enable background auto-fetch]'
+    '--auto-fetch[Enable background auto-fetch]'
+    '--no-auto-fetch[Disable background auto-fetch]'
+    '--bg-status[Show background fetch status]'
+    '--no-bg-status[Hide background fetch status]'
+  )
+
+  _arguments -s : \
+    "$opts[@]" \
+    '1:remote:($(git remote 2>/dev/null))' \
+    '*::args:->args'
+}
+
+_gsb "$@"
